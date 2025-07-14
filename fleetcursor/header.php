@@ -18,6 +18,9 @@
             <?php if (hasPermission('departments_view')): ?>
                 <li><a href="departments.php" class="nav-link">Departments</a></li>
             <?php endif; ?>
+            <?php if (hasPermission('maintenance_view')): ?>
+                <li><a href="maintenance.php" class="nav-link">Maintenance</a></li>
+            <?php endif; ?>
             <?php if (hasPermission('reports_view')): ?>
                 <li><a href="reports.php" class="nav-link">Reports</a></li>
             <?php endif; ?>

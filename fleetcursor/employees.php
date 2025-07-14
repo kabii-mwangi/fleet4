@@ -137,13 +137,15 @@ try {
                             <th>Email</th>
                             <th>Phone</th>
                             <th>Department</th>
-                            <th>Actions</th>
+                            <?php if (hasPermission('employees_edit') || hasPermission('employees_delete')): ?>
+                                <th>Actions</th>
+                            <?php endif; ?>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (empty($employees)): ?>
                             <tr>
-                                <td colspan="5" class="no-data">No employees found</td>
+                                <td colspan="<?php echo (hasPermission('employees_edit') || hasPermission('employees_delete')) ? '5' : '4'; ?>" class="no-data">No employees found</td>
                             </tr>
                         <?php else: ?>
                             <?php foreach ($employees as $employee): ?>
@@ -154,14 +156,20 @@ try {
                                     <td>
                                         <span class="badge badge-success"><?php echo htmlspecialchars($employee['department']); ?></span>
                                     </td>
-                                    <td>
-                                        <button onclick="editEmployee(<?php echo $employee['id']; ?>, '<?php echo htmlspecialchars($employee['name'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($employee['email'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($employee['phone'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($employee['department'], ENT_QUOTES); ?>')" class="btn btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem; margin-right: 0.5rem;">Edit</button>
-                                        <form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this employee?');">
-                                            <input type="hidden" name="action" value="delete">
-                                            <input type="hidden" name="employee_id" value="<?php echo $employee['id']; ?>">
-                                            <button type="submit" class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Delete</button>
-                                        </form>
-                                    </td>
+                                    <?php if (hasPermission('employees_edit') || hasPermission('employees_delete')): ?>
+                                        <td>
+                                            <?php if (hasPermission('employees_edit')): ?>
+                                                <button onclick="editEmployee(<?php echo $employee['id']; ?>, '<?php echo htmlspecialchars($employee['name'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($employee['email'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($employee['phone'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($employee['department'], ENT_QUOTES); ?>')" class="btn btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem; margin-right: 0.5rem;">Edit</button>
+                                            <?php endif; ?>
+                                            <?php if (hasPermission('employees_delete')): ?>
+                                                <form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this employee?');">
+                                                    <input type="hidden" name="action" value="delete">
+                                                    <input type="hidden" name="employee_id" value="<?php echo $employee['id']; ?>">
+                                                    <button type="submit" class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Delete</button>
+                                                </form>
+                                            <?php endif; ?>
+                                        </td>
+                                    <?php endif; ?>
                                 </tr>
                             <?php endforeach; ?>
                         <?php endif; ?>
