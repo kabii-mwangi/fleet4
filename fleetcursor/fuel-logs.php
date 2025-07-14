@@ -189,13 +189,15 @@ try {
                             <th>Cost</th>
                             <th>Cost/Liter</th>
                             <th>Notes</th>
-                            <th>Actions</th>
+                            <?php if (hasPermission('fuel_logs_edit') || hasPermission('fuel_logs_delete')): ?>
+                                <th>Actions</th>
+                            <?php endif; ?>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (empty($fuelLogs)): ?>
                             <tr>
-                                <td colspan="8" class="no-data">No fuel logs found</td>
+                                <td colspan="<?php echo (hasPermission('fuel_logs_edit') || hasPermission('fuel_logs_delete')) ? '8' : '7'; ?>" class="no-data">No fuel logs found</td>
                             </tr>
                         <?php else: ?>
                             <?php foreach ($fuelLogs as $log): ?>
@@ -212,14 +214,20 @@ try {
                                     <td><?php echo formatCurrency($log['cost']); ?></td>
                                     <td><?php echo formatCurrency($log['cost'] / $log['fuel_quantity']); ?></td>
                                     <td><?php echo htmlspecialchars($log['notes'] ?: '-'); ?></td>
-                                    <td>
-                                        <button onclick="editFuelLog(<?php echo $log['id']; ?>, <?php echo $log['vehicle_id']; ?>, '<?php echo $log['date']; ?>', <?php echo $log['mileage']; ?>, <?php echo $log['fuel_quantity']; ?>, <?php echo $log['cost']; ?>, '<?php echo htmlspecialchars($log['notes'], ENT_QUOTES); ?>')" class="btn btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem; margin-right: 0.5rem;">Edit</button>
-                                        <form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this fuel log?');">
-                                            <input type="hidden" name="action" value="delete">
-                                            <input type="hidden" name="log_id" value="<?php echo $log['id']; ?>">
-                                            <button type="submit" class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Delete</button>
-                                        </form>
-                                    </td>
+                                    <?php if (hasPermission('fuel_logs_edit') || hasPermission('fuel_logs_delete')): ?>
+                                        <td>
+                                            <?php if (hasPermission('fuel_logs_edit')): ?>
+                                                <button onclick="editFuelLog(<?php echo $log['id']; ?>, <?php echo $log['vehicle_id']; ?>, '<?php echo $log['date']; ?>', <?php echo $log['mileage']; ?>, <?php echo $log['fuel_quantity']; ?>, <?php echo $log['cost']; ?>, '<?php echo htmlspecialchars($log['notes'], ENT_QUOTES); ?>')" class="btn btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem; margin-right: 0.5rem;">Edit</button>
+                                            <?php endif; ?>
+                                            <?php if (hasPermission('fuel_logs_delete')): ?>
+                                                <form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this fuel log?');">
+                                                    <input type="hidden" name="action" value="delete">
+                                                    <input type="hidden" name="log_id" value="<?php echo $log['id']; ?>">
+                                                    <button type="submit" class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Delete</button>
+                                                </form>
+                                            <?php endif; ?>
+                                        </td>
+                                    <?php endif; ?>
                                 </tr>
                             <?php endforeach; ?>
                         <?php endif; ?>

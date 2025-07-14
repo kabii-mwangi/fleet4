@@ -112,27 +112,35 @@ try {
                         <tr>
                             <th>Name</th>
                             <th>Description</th>
-                            <th>Actions</th>
+                            <?php if (hasPermission('departments_edit') || hasPermission('departments_delete')): ?>
+                                <th>Actions</th>
+                            <?php endif; ?>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (empty($departments)): ?>
                             <tr>
-                                <td colspan="3" class="no-data">No departments found</td>
+                                <td colspan="<?php echo (hasPermission('departments_edit') || hasPermission('departments_delete')) ? '3' : '2'; ?>" class="no-data">No departments found</td>
                             </tr>
                         <?php else: ?>
                             <?php foreach ($departments as $department): ?>
                                 <tr>
                                     <td><?php echo htmlspecialchars($department['name']); ?></td>
                                     <td><?php echo htmlspecialchars($department['description'] ?: '-'); ?></td>
-                                    <td>
-                                        <button onclick="editDepartment(<?php echo $department['id']; ?>, '<?php echo htmlspecialchars($department['name'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($department['description'], ENT_QUOTES); ?>')" class="btn btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem; margin-right: 0.5rem;">Edit</button>
-                                        <form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this department?');">
-                                            <input type="hidden" name="action" value="delete">
-                                            <input type="hidden" name="department_id" value="<?php echo $department['id']; ?>">
-                                            <button type="submit" class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Delete</button>
-                                        </form>
-                                    </td>
+                                    <?php if (hasPermission('departments_edit') || hasPermission('departments_delete')): ?>
+                                        <td>
+                                            <?php if (hasPermission('departments_edit')): ?>
+                                                <button onclick="editDepartment(<?php echo $department['id']; ?>, '<?php echo htmlspecialchars($department['name'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($department['description'], ENT_QUOTES); ?>')" class="btn btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem; margin-right: 0.5rem;">Edit</button>
+                                            <?php endif; ?>
+                                            <?php if (hasPermission('departments_delete')): ?>
+                                                <form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this department?');">
+                                                    <input type="hidden" name="action" value="delete">
+                                                    <input type="hidden" name="department_id" value="<?php echo $department['id']; ?>">
+                                                    <button type="submit" class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Delete</button>
+                                                </form>
+                                            <?php endif; ?>
+                                        </td>
+                                    <?php endif; ?>
                                 </tr>
                             <?php endforeach; ?>
                         <?php endif; ?>

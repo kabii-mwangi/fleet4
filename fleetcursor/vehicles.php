@@ -10,8 +10,8 @@ if ($_POST) {
     if ($action === 'add' && hasPermission('vehicles_edit')) {
         try {
             $stmt = $pdo->prepare("
-                INSERT INTO vehicles (registration_number, make, model, year, category_id, assigned_employee_id, department, current_mileage) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO vehicles (registration_number, make, model, year, category_id, assigned_employee_id, department, current_mileage, office_id) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
             $stmt->execute([
                 $_POST['registration_number'],
@@ -21,7 +21,8 @@ if ($_POST) {
                 (int)$_POST['category_id'],
                 !empty($_POST['assigned_employee_id']) ? (int)$_POST['assigned_employee_id'] : null,
                 $_POST['department'],
-                (int)$_POST['current_mileage']
+                (int)$_POST['current_mileage'],
+                getUserOfficeId()
             ]);
             $success = "Vehicle added successfully!";
         } catch(PDOException $e) {
@@ -29,7 +30,7 @@ if ($_POST) {
         }
     }
     
-    if ($action === 'edit') {
+    if ($action === 'edit' && hasPermission('vehicles_edit')) {
         try {
             $stmt = $pdo->prepare("
                 UPDATE vehicles 
@@ -54,7 +55,17 @@ if ($_POST) {
         }
     }
     
-    if ($action === 'delete') {
+    if ($action === 'update_status' && hasPermission('vehicles_edit')) {
+        try {
+            $stmt = $pdo->prepare("UPDATE vehicles SET status = ? WHERE id = ?");
+            $stmt->execute([$_POST['status'], (int)$_POST['vehicle_id']]);
+            $success = "Vehicle status updated successfully!";
+        } catch(PDOException $e) {
+            $error = "Error updating vehicle status: " . $e->getMessage();
+        }
+    }
+    
+    if ($action === 'delete' && hasPermission('vehicles_delete')) {
         try {
             $stmt = $pdo->prepare("DELETE FROM vehicles WHERE id = ?");
             $stmt->execute([(int)$_POST['vehicle_id']]);
@@ -65,14 +76,16 @@ if ($_POST) {
     }
 }
 
-// Get vehicles with details
 try {
+    // Get all vehicles with office filtering
+    $officeFilter = getOfficeFilterSQL('v', false);
     $stmt = $pdo->query("
-        SELECT v.*, vc.name as category_name, e.name as employee_name 
+        SELECT v.*, vc.name as category_name, e.name as employee_name, o.name as office_name
         FROM vehicles v 
         JOIN vehicle_categories vc ON v.category_id = vc.id 
         LEFT JOIN employees e ON v.assigned_employee_id = e.id 
-        WHERE v.status = 'active'
+        LEFT JOIN offices o ON v.office_id = o.id
+        WHERE 1=1 $officeFilter
         ORDER BY v.registration_number
     ");
     $vehicles = $stmt->fetchAll();
@@ -199,15 +212,19 @@ try {
                             <th>Vehicle</th>
                             <th>Category</th>
                             <th>Department</th>
+                            <th>Office</th>
                             <th>Assigned To</th>
+                            <th>Status</th>
                             <th>Mileage</th>
-                            <th>Actions</th>
+                            <?php if (hasPermission('vehicles_edit') || hasPermission('vehicles_delete')): ?>
+                                <th>Actions</th>
+                            <?php endif; ?>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (empty($vehicles)): ?>
                             <tr>
-                                <td colspan="7" class="no-data">No vehicles found</td>
+                                <td colspan="<?php echo (hasPermission('vehicles_edit') || hasPermission('vehicles_delete')) ? '9' : '8'; ?>" class="no-data">No vehicles found</td>
                             </tr>
                         <?php else: ?>
                             <?php foreach ($vehicles as $vehicle): ?>
@@ -225,16 +242,40 @@ try {
                                         <span class="badge badge-success"><?php echo htmlspecialchars($vehicle['category_name']); ?></span>
                                     </td>
                                     <td><?php echo htmlspecialchars($vehicle['department']); ?></td>
+                                    <td><?php echo htmlspecialchars($vehicle['office_name']); ?></td>
                                     <td><?php echo $vehicle['employee_name'] ? htmlspecialchars($vehicle['employee_name']) : '<em>Unassigned</em>'; ?></td>
-                                    <td><?php echo number_format($vehicle['current_mileage']); ?> km</td>
                                     <td>
-                                        <button onclick="editVehicle(<?php echo $vehicle['id']; ?>, '<?php echo htmlspecialchars($vehicle['registration_number'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($vehicle['make'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($vehicle['model'], ENT_QUOTES); ?>', <?php echo $vehicle['year']; ?>, <?php echo $vehicle['category_id']; ?>, <?php echo $vehicle['assigned_employee_id'] ?: 'null'; ?>, '<?php echo htmlspecialchars($vehicle['department'], ENT_QUOTES); ?>', <?php echo $vehicle['current_mileage']; ?>)" class="btn btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem; margin-right: 0.5rem;">Edit</button>
-                                        <form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this vehicle?');">
-                                            <input type="hidden" name="action" value="delete">
-                                            <input type="hidden" name="vehicle_id" value="<?php echo $vehicle['id']; ?>">
-                                            <button type="submit" class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Delete</button>
-                                        </form>
+                                        <?php if (hasPermission('vehicles_edit')): ?>
+                                            <form method="POST" style="display: inline;">
+                                                <input type="hidden" name="action" value="update_status">
+                                                <input type="hidden" name="vehicle_id" value="<?php echo $vehicle['id']; ?>">
+                                                <select name="status" onchange="this.form.submit()" class="status-select status-<?php echo $vehicle['status']; ?>">
+                                                    <option value="active" <?php echo $vehicle['status'] === 'active' ? 'selected' : ''; ?>>Active</option>
+                                                    <option value="maintenance" <?php echo $vehicle['status'] === 'maintenance' ? 'selected' : ''; ?>>Under Maintenance</option>
+                                                    <option value="inactive" <?php echo $vehicle['status'] === 'inactive' ? 'selected' : ''; ?>>Inactive</option>
+                                                </select>
+                                            </form>
+                                        <?php else: ?>
+                                            <span class="status-badge status-<?php echo $vehicle['status']; ?>">
+                                                <?php echo ucfirst(str_replace('_', ' ', $vehicle['status'])); ?>
+                                            </span>
+                                        <?php endif; ?>
                                     </td>
+                                    <td><?php echo number_format($vehicle['current_mileage']); ?> km</td>
+                                    <?php if (hasPermission('vehicles_edit') || hasPermission('vehicles_delete')): ?>
+                                        <td>
+                                            <?php if (hasPermission('vehicles_edit')): ?>
+                                                <button onclick="editVehicle(<?php echo $vehicle['id']; ?>, '<?php echo htmlspecialchars($vehicle['registration_number'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($vehicle['make'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($vehicle['model'], ENT_QUOTES); ?>', <?php echo $vehicle['year']; ?>, <?php echo $vehicle['category_id']; ?>, <?php echo $vehicle['assigned_employee_id'] ?: 'null'; ?>, '<?php echo htmlspecialchars($vehicle['department'], ENT_QUOTES); ?>', <?php echo $vehicle['current_mileage']; ?>)" class="btn btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem; margin-right: 0.5rem;">Edit</button>
+                                            <?php endif; ?>
+                                            <?php if (hasPermission('vehicles_delete')): ?>
+                                                <form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this vehicle?');">
+                                                    <input type="hidden" name="action" value="delete">
+                                                    <input type="hidden" name="vehicle_id" value="<?php echo $vehicle['id']; ?>">
+                                                    <button type="submit" class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Delete</button>
+                                                </form>
+                                            <?php endif; ?>
+                                        </td>
+                                    <?php endif; ?>
                                 </tr>
                             <?php endforeach; ?>
                         <?php endif; ?>

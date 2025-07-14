@@ -68,6 +68,11 @@ function isSuperAdmin() {
     return isset($_SESSION['role_name']) && $_SESSION['role_name'] === 'Super Admin';
 }
 
+// Check if current user can view all offices (Super Admin or Admin)
+function canViewAllOffices() {
+    return hasPermission('view_all_offices') || isSuperAdmin();
+}
+
 // Format currency in KSH
 function formatCurrency($amount) {
     return 'KSH ' . number_format($amount, 2);
@@ -85,8 +90,8 @@ function calculateEfficiency($distance, $fuel) {
 
 // Get office-filtered SQL condition
 function getOfficeFilterSQL($tableAlias = '', $includeWhere = true) {
-    if (isSuperAdmin()) {
-        return ''; // Super admin sees all
+    if (canViewAllOffices()) {
+        return ''; // Super admin and admin see all offices
     }
     
     $prefix = $tableAlias ? $tableAlias . '.' : '';

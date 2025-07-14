@@ -54,15 +54,17 @@ INSERT INTO roles (name, description, permissions) VALUES
     'employees_view', true, 'employees_edit', true, 'employees_delete', true,
     'departments_view', true, 'departments_edit', true, 'departments_delete', true,
     'users_view', true, 'users_edit', true, 'users_delete', true,
-    'reports_view', true, 'system_settings', true
+    'reports_view', true, 'system_settings', true, 'maintenance_view', true, 
+    'maintenance_edit', true, 'maintenance_delete', true, 'view_all_offices', true
 )),
-('Admin', 'Administrative access with some restrictions', JSON_OBJECT(
+('Admin', 'Administrative access with multi-office view', JSON_OBJECT(
     'vehicles_view', true, 'vehicles_edit', true, 'vehicles_delete', false,
     'fuel_logs_view', true, 'fuel_logs_edit', true, 'fuel_logs_delete', false,
     'employees_view', true, 'employees_edit', true, 'employees_delete', false,
     'departments_view', true, 'departments_edit', true, 'departments_delete', false,
     'users_view', true, 'users_edit', false, 'users_delete', false,
-    'reports_view', true, 'system_settings', false
+    'reports_view', true, 'system_settings', false, 'maintenance_view', true,
+    'maintenance_edit', true, 'maintenance_delete', false, 'view_all_offices', true
 )),
 ('User', 'Basic user access - view and add fuel logs only', JSON_OBJECT(
     'vehicles_view', true, 'vehicles_edit', false, 'vehicles_delete', false,
@@ -70,9 +72,10 @@ INSERT INTO roles (name, description, permissions) VALUES
     'employees_view', true, 'employees_edit', false, 'employees_delete', false,
     'departments_view', true, 'departments_edit', false, 'departments_delete', false,
     'users_view', false, 'users_edit', false, 'users_delete', false,
-    'reports_view', true, 'system_settings', false
+    'reports_view', true, 'system_settings', false, 'maintenance_view', true,
+    'maintenance_edit', false, 'maintenance_delete', false, 'view_all_offices', false
 ))
-ON DUPLICATE KEY UPDATE description = VALUES(description);
+ON DUPLICATE KEY UPDATE permissions = VALUES(permissions);
 
 -- Insert default offices
 INSERT INTO offices (name, description, address, phone) VALUES 
@@ -84,6 +87,27 @@ ON DUPLICATE KEY UPDATE description = VALUES(description);
 ALTER TABLE vehicles ADD FOREIGN KEY (office_id) REFERENCES offices(id) ON DELETE RESTRICT;
 ALTER TABLE employees ADD FOREIGN KEY (office_id) REFERENCES offices(id) ON DELETE RESTRICT;
 ALTER TABLE departments ADD FOREIGN KEY (office_id) REFERENCES offices(id) ON DELETE RESTRICT;
+
+-- Create maintenance table
+CREATE TABLE IF NOT EXISTS vehicle_maintenance (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    vehicle_id INT NOT NULL,
+    maintenance_type ENUM('scheduled', 'repair', 'emergency') DEFAULT 'scheduled',
+    description TEXT NOT NULL,
+    cost DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    maintenance_date DATE NOT NULL,
+    mileage_at_maintenance INT,
+    status ENUM('planned', 'in_progress', 'completed', 'cancelled') DEFAULT 'planned',
+    mechanic_name VARCHAR(255),
+    notes TEXT,
+    office_id INT NOT NULL,
+    created_by INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE,
+    FOREIGN KEY (office_id) REFERENCES offices(id) ON DELETE RESTRICT,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Create default admin user (password: Admin123#)
 INSERT INTO users (username, email, password_hash, full_name, role_id, office_id) VALUES 
@@ -104,6 +128,14 @@ CREATE INDEX idx_users_office ON users(office_id);
 CREATE INDEX idx_vehicles_office ON vehicles(office_id);
 CREATE INDEX idx_employees_office ON employees(office_id);
 CREATE INDEX idx_departments_office ON departments(office_id);
+
+-- Add indexes for maintenance table
+CREATE INDEX idx_maintenance_vehicle ON vehicle_maintenance(vehicle_id);
+CREATE INDEX idx_maintenance_date ON vehicle_maintenance(maintenance_date);
+CREATE INDEX idx_maintenance_office ON vehicle_maintenance(office_id);
+CREATE INDEX idx_maintenance_created_by ON vehicle_maintenance(created_by);
+CREATE INDEX idx_maintenance_status ON vehicle_maintenance(status);
+CREATE INDEX idx_maintenance_type ON vehicle_maintenance(maintenance_type);
 
 -- Create updated views that include office information
 CREATE OR REPLACE VIEW vehicle_details_with_office AS
